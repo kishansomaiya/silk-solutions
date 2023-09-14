@@ -1,201 +1,85 @@
-// src/FirebaseTable.tsx
-
-import React, { useState, useEffect } from 'react';
-import {  child, get } from "firebase/database";
-import dbRef from './firebaseConfig';
-import ExpandableRow from './ExpandableRow';
-import { Box, Collapse, IconButton, Paper, SxProps } from "@mui/material";
-import { DataGrid, GridRenderCellParams, GridToolbar, GridColDef, GridToolbarContainer, GridToolbarExport, GridRowProps, GridRowParams } from "@mui/x-data-grid";
-
-import { faker } from "@faker-js/faker";
-
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Doughnut } from 'react-chartjs-2';
+import React, { useState, useEffect } from "react";
+import { child, get } from "firebase/database";
+import dbRef from "./firebaseConfig";
+import ExpandableRow from "./ExpandableRow";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
+import { Doughnut } from "react-chartjs-2";
+import "./App.css";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
-
-
-
-
-const addresses: {
-  [key: string]: any;
-}[] = [];
-
-for (let i = 0; i < 100; i++) {
-  addresses.push({
-      id: i+1,
-    address: `${faker.address.streetAddress()} ${faker.address.secondaryAddress()}`,
-    zip: faker.address.zipCode(),
-    city: faker.address.city(),
-    state: faker.address.state(),
-  });
-}
-
-const datagridSx: SxProps = {
-  marginTop: 4,
-  borderRadius: 2,
-  height: 500,
-  textAlign: "center"
-  //minHeight: 500
-};
-
-const detailStyles={
-  borderTop: "2px solid",
-  borderTopColor: "primary.main",
-  pt: 2
-}
-
 const FirebaseTable: React.FC = () => {
   const [data, setData] = useState<any[]>([]);
+  const [isExpanded, setIsExpanded] = useState(false);
 
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+
+  /* getting data */
   useEffect(() => {
-    get(child(dbRef, `/`)).then((snapshot) => {
+    get(child(dbRef, `/`))
+      .then((snapshot) => {
         if (snapshot.exists()) {
-          setData(snapshot.val())
+          setData(snapshot.val());
           console.log(snapshot.val());
         } else {
           console.log("No data available");
         }
-      }).catch((error) => {
+      })
+      .catch((error) => {
         console.error(error);
       });
-
-    
   }, []);
 
-  console.log(data)
+  /*seperating data into grouped and raw findings */
 
   const grouped_findings = data.slice(0, 99);
   const raw_findings = data.slice(101, 200);
 
-  // const [critical, setCritical] = useState(0)
-  // const [high, setHigh] = useState(0)
-  // const [medium, setMedium] = useState(0)
-  // const [low, setLow] = useState(0)
+  /* handling collapse and expand */
 
-  // grouped_findings.map((i)=> {
-  //   if(i.severity == "critical") {
-  //     setCritical(critical+1)
-  //   } else if(i.severity == "high") {
-  //     setHigh(high+1)
-  //   } else if(i.severity == "medium") {
-  //     setMedium(medium+1)
-  //   } else {
-  //     setLow(low+1)
-  //   }
-  // })
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
+  const handleRowClick = (groupId: string) => {
+    if (expandedRow === groupId) {
+      setExpandedRow(null);
+    } else {
+      setExpandedRow(groupId);
+    }
+  };
 
+  /*filling raw finding table */
 
+  const getRandomRawFindings = () => {
+    const randomRawFindings = [];
+    const keys = Object.keys(raw_findings);
+    for (let i = 0; i < 10; i++) {
+      const randomKey: any = keys[Math.floor(Math.random() * keys.length)];
+      randomRawFindings.push(raw_findings[randomKey]);
+    }
+    return randomRawFindings;
+  };
 
-  const [clickedIndex, setClickedIndex] = useState(-1);
-
-  const grouped_findings_columns: GridColDef[] = [
-    {
-      field: "id",
-      renderCell: (cellValues: GridRenderCellParams<any>) => {
-          return (<IconButton onClick={() => {clickedIndex === cellValues.value ? setClickedIndex(-1) : setClickedIndex(cellValues.value)}}>{cellValues.value === clickedIndex ? "^" : "v"}</IconButton>)
-      },
-      width: 60
-    },
-    {
-      field: "grouping_type",
-      headerName: "Grouping Type",
-      renderCell: (cellValues: any) => {
-        return (
-          <Box><div>{cellValues.value}</div><Collapse in={cellValues.id === clickedIndex}><Box sx={detailStyles}>created: {grouped_findings[cellValues.id].grouped_finding_created}</Box></Collapse></Box>
-        )
-      },
-      width: 250
-    },
-    { field: "severity", headerName: "Severity", flex: 1, editable: true,
-    renderCell: (cellValues: GridRenderCellParams<any>) => {
-      return (
-        <Box><div>{cellValues.value}</div><Collapse in={cellValues.id === clickedIndex}><Box sx={detailStyles}></Box></Collapse></Box>
-      )
-    },
-    width: 200
-  },
-    { field: "owner", headerName: "owner", flex: 1,
-    renderCell: (cellValues: any) => {
-      return (
-        <Box><div>{cellValues.value}</div><Collapse in={cellValues.id === clickedIndex}><Box sx={detailStyles}>security_analyst: {grouped_findings[cellValues.id].security_analyst}</Box></Collapse></Box>
-      )
-    },
-    width: 200
-  },
-    { field: "status", headerName: "Status", flex: 1, editable: true, 
-    renderCell: (cellValues: any) => {
-      return (
-        <Box><div>{cellValues.value}</div><Collapse in={cellValues.id === clickedIndex}><Box sx={detailStyles}>progress: {grouped_findings[cellValues.id].progress}</Box></Collapse></Box>
-      )
-    },
-    width: 200
-  }
-  ];
-  const raw_findings_columns: GridColDef[] = [
-    {
-      field: "id",
-      renderCell: (cellValues: GridRenderCellParams<any>) => {
-          return (<IconButton onClick={() => {clickedIndex === cellValues.value ? setClickedIndex(-1) : setClickedIndex(cellValues.value)}}>{cellValues.value === clickedIndex ? "^" : "v"}</IconButton>)
-      },
-      width: 60
-    },
-    {
-      field: "source_security_tool_name",
-      headerName: "Security Tool",
-      renderCell: (cellValues: GridRenderCellParams<any>) => {
-        return (
-          <Box><div>{cellValues.value}</div><Collapse in={cellValues.id === clickedIndex}><Box sx={detailStyles}></Box></Collapse></Box>
-        )
-      },
-      width: 250
-    },
-    { field: "severity", headerName: "Severity", flex: 1, editable: true,
-    renderCell: (cellValues: GridRenderCellParams<any>) => {
-      return (
-        <Box><div>{cellValues.value}</div><Collapse in={cellValues.id === clickedIndex}><Box sx={detailStyles}></Box></Collapse></Box>
-      )
-    },
-    width: 200
-  },
-    { field: "source_collaboration_tool_name", headerName: "Collab Tool", flex: 1,
-    renderCell: (cellValues: GridRenderCellParams<any>) => {
-      return (
-        <Box><div>{cellValues.value}</div><Collapse in={cellValues.id === clickedIndex}><Box sx={detailStyles}></Box></Collapse></Box>
-      )
-    },
-    width: 200
-  },
-    { field: "status", headerName: "Status", flex: 1, editable: true, 
-    renderCell: (cellValues: any) => {
-      return (
-        <Box><div>{cellValues.value}</div><Collapse in={cellValues.id === clickedIndex}><Box sx={detailStyles}>description: {raw_findings[cellValues.id].description}</Box></Collapse></Box>
-      )
-    },
-    width: 200
-  }
-  ];
-
-
+  /* chart data creation and color picking */
 
   const Chartdata = {
-    labels: ['Critical', 'Medium', 'High', 'Low'],
+    labels: ["Critical", "Medium", "High", "Low"],
     datasets: [
       {
-        label: '# of Votes',
+        label: "# of Votes",
         data: [1, 7, 8, 83],
         backgroundColor: [
-          'rgba(255, 99, 132, 0.2)',
-          'rgba(54, 162, 235, 0.2)',
-          'rgba(255, 206, 86, 0.2)',
-          'rgba(75, 192, 192, 0.2)',
+          "rgba(255, 99, 132, 0.2)",
+          "rgba(54, 162, 235, 0.2)",
+          "rgba(255, 206, 86, 0.2)",
+          "rgba(75, 192, 192, 0.2)",
         ],
         borderColor: [
-          'rgba(255, 99, 132, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(75, 192, 192, 1)',
+          "rgba(255, 99, 132, 1)",
+          "rgba(54, 162, 235, 1)",
+          "rgba(255, 206, 86, 1)",
+          "rgba(75, 192, 192, 1)",
         ],
         borderWidth: 1,
       },
@@ -203,47 +87,82 @@ const FirebaseTable: React.FC = () => {
   };
 
   return (
-    
-    // <div>
-    //   <table>
-    //     <thead>
-    //       <tr>
-    //         <th>ID</th>
-    //         <th>Name</th>
-    //         <th>Actions</th>
-    //       </tr>
-    //     </thead>
-    //     <tbody>
-    //       {data.map((item: any) => (
-    //         <React.Fragment key={item.id}>
-    //           <ExpandableRow data={item} />
-    //         </React.Fragment>
-    //       ))}
-    //     </tbody>
-    //   </table>
-    // </div>
     <>
-    <Paper sx={datagridSx}>
-      <DataGrid
-        rows={grouped_findings}
-        columns={grouped_findings_columns}
-        rowHeight={100}
-        pagination={true}
-      />
-    </Paper>
+    <div className="container">
+      <table className="main-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Severity</th>
+            <th>Time</th>
+            <th>SLA</th>
+            <th>Description</th>
+            <th>Security Analyst</th>
+            <th>Owner</th>
+            <th>Workflow</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody className="grouped_findings">
+          {grouped_findings.map((groupFinding) => (
+            <React.Fragment key={groupFinding.id}>
+              <tr onClick={() => handleRowClick(groupFinding.id)}>
+                <td>
+                  <button onClick={toggleExpand}>
+                    {isExpanded ? "^" : "v"}
+                  </button>
+                </td>
+                <td>{groupFinding.severity}</td>
+                <td>{groupFinding.grouped_finding_created}</td>
+                <td>{groupFinding.sla}</td>
+                <td>{groupFinding.description}</td>
+                <td>{groupFinding.security_analyst}</td>
+                <td>{groupFinding.owner}</td>
+                <td>{groupFinding.workflow}</td>
+                <td>{groupFinding.status}</td>
+              </tr>
+              {expandedRow === groupFinding.id && (
+                <tr className="expanded-row">
+                  <td colSpan={9}>
+                    <div className="raw_findings_table">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Severity</th>
+                            <th>Time</th>
+                            <th>Source</th>
+                            <th>Description</th>
+                            <th>Asset</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {getRandomRawFindings().map((rawFinding, index) => (
+                            <tr key={index}>
+                              <td>{rawFinding.severity}</td>
+                              <td>{rawFinding.finding_created}</td>
+                              <td>{rawFinding.source_security_tool_name}</td>
+                              <td>{rawFinding.description}</td>
+                              <td>{rawFinding.asset}</td>
+                              <td>{rawFinding.status}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
 
-    <Paper sx={datagridSx}>
-      <DataGrid
-        rows={raw_findings}
-        columns={raw_findings_columns}
-        rowHeight={100}
-        pagination={true}
-      />
-    </Paper>
-      <div style={{maxHeight: '500px', maxWidth: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
-    <Doughnut data={Chartdata} />
+      
     </div>
-
+    <div className="chart-container">
+        <Doughnut data={Chartdata} />
+      </div>
     </>
   );
 };
